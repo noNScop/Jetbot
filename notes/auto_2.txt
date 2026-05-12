@@ -1,2 +1,5 @@
 Komenda do kopiowania plików z jetbota do repo
-scp -r jetbot@192.168.0.110:/home/jetbot/Notebooks/teleoperation /Users/nonscop/Desktop/sem6/ROB/Jetbot/
+scp -r jetbot@192.168.0.110:/home/jetbot/Notebooks/teleoperation/sakupen_circles /Users/nonscop/Desktop/sem6/ROB/Jetbot/
+
+Komenda do kopiowania plików z repo do jetbota
+scp -r /Users/nonscop/Desktop/sem6/ROB/Jetbot/sakupen_circles jetbot@192.168.0.110:/home/jetbot/Notebooks/teleoperation/
