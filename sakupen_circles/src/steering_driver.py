@@ -32,19 +32,24 @@ TURN_POWER = 0.8         # from manual notebook
 # =========================
 # LOAD MODEL
 # =========================
-model_name = 'mobilenetv4_conv_small_050.e3000_r224_in1k'
+# model_name = 'mobilenetv4_conv_small_050.e3000_r224_in1k'
 
-model = timm.create_model(model_name, pretrained=True)
+# model = timm.create_model(model_name, pretrained=True)
 
-model.classifier = nn.Sequential(
-    nn.Linear(1280, 256),
-    nn.ReLU(),
-    nn.Dropout(0.2),
-    nn.Linear(256, 2),
-    nn.Tanh()
-)
-checkpoint = torch.load(MODEL_PATH, map_location=device)
-model.load_state_dict(checkpoint["model_state_dict"])
+# model.classifier = nn.Sequential(
+#     nn.Linear(1280, 256),
+#     nn.ReLU(),
+#     nn.Dropout(0.2),
+#     nn.Linear(256, 2),
+#     nn.Tanh()
+# )
+# checkpoint = torch.load(MODEL_PATH, map_location=device)
+# model.load_state_dict(checkpoint["model_state_dict"])
+# model.eval().to(device)
+
+MODEL_PATH = "models/mobilenet_medium_torchscript.pt"
+
+model = torch.jit.load(MODEL_PATH, map_location=device)
 model.eval().to(device)
 
 # =========================
