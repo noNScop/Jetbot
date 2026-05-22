@@ -1,188 +1,95 @@
-import torch
 import time
-import sys
 import cv2
 import numpy as np
 from jetbot import Robot, Camera
-from PIL import Image
-import torchvision.transforms as T
-
-import timm
-import torch
-import torch.nn as nn
+import onnxruntime as ort
 
 # =========================
-# CONFIG (MATCH MANUAL)
+# CONFIG
 # =========================
-
-MODEL_PATH = "models/mobilenet_tiny"
-
-FPS = 10
-DT = 1.0 / FPS
-
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-# ---- manual-equivalent parameters ----
-max_speed = 0.3          # equivalent to max_speed_slider.value
-left_scale = 1.0         # left_scale_slider.value
-right_scale = 0.98       # right_scale_slider.value
-turn_boost = 0.4         # turn_boost_slider.value
-TURN_POWER = 0.8         # from manual notebook
+MODEL_PATH  = "../models/tiny_mobilenet.onnx"
+max_speed   = 0.3
+left_scale  = 1.0
+right_scale = 0.98
+turn_boost  = 0.4
+TURN_POWER  = 0.8
 
 # =========================
 # LOAD MODEL
 # =========================
-# model_name = 'mobilenetv4_conv_small_050.e3000_r224_in1k'
-
-# model = timm.create_model(model_name, pretrained=True)
-
-# model.classifier = nn.Sequential(
-#     nn.Linear(1280, 256),
-#     nn.ReLU(),
-#     nn.Dropout(0.2),
-#     nn.Linear(256, 2),
-#     nn.Tanh()
-# )
-# checkpoint = torch.load(MODEL_PATH, map_location=device)
-# model.load_state_dict(checkpoint["model_state_dict"])
-# model.eval().to(device)
-
-MODEL_PATH = "models/mobilenet_medium_torchscript.pt"
-
-model = torch.jit.load(MODEL_PATH, map_location=device)
-model.eval().to(device)
+onnx_session = ort.InferenceSession(MODEL_PATH)
 
 # =========================
 # CAMERA + ROBOT
 # =========================
-
-robot = Robot()
+robot  = Robot()
 camera = Camera.instance()
 
 # =========================
-# TRANSFORM (must match training)
+# PREPROCESS
 # =========================
-
-data_config = timm.data.resolve_model_data_config(model)
-transform = timm.data.create_transform(**data_config, is_training=False)
+def preprocess(bgr_frame):
+    img = bgr_frame[:, :, ::-1].astype(np.float32) / 255.0  # BGR→RGB + [0,1]
+    img = (img - 0.5) / 0.5                                  # → [-1, 1]
+    return np.ascontiguousarray(img.transpose(2, 0, 1)[np.newaxis])
 
 # =========================
 # LOOP
 # =========================
-
-print("Starting manual-equivalent autonomous driving...")
-
-last_time = time.time()
-
-smooth_turn = 0.0
-smooth_throttle = 0.0
+print("Starting autonomous driving...")
 
 try:
     while True:
+        t_loop_start = time.perf_counter()
 
-        now = time.time()
-        if now - last_time < DT:
-            sleep_time = DT - (now - last_time)
-            if sleep_time > 0:
-                time.sleep(sleep_time)
-
-        last_time = time.time()
-
-        # -------------------------
-        # CAMERA FRAME
-        # -------------------------
         frame = camera.value
         if frame is None:
             continue
 
-        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        image = Image.fromarray(frame)
-        x = transform(image).unsqueeze(0).to(device)
+        x = preprocess(frame)  # no cvtColor needed, flip is in preprocess
 
-        # -------------------------
-        # MODEL OUTPUT
-        # expected: [throttle, turn]
-        # -------------------------
-        with torch.no_grad():
-            output = model(x)
+        # ── inference ──────────────────────────────
+        t_infer_start = time.perf_counter()
+        output = onnx_session.run(None, {"x": x})
+        t_infer_end = time.perf_counter()
 
-        throttle = output[0, 0].item()
-        turn = output[0, 1].item()
+        throttle, turn = output[0][0]
 
-        # =========================
-        # MANUAL PIPELINE EMULATION
-        # =========================
-
-        # ADJUST AS NEEDED <-----------------------------------------------------------------------------------------------------------------------------------
-        if abs(turn) < 0.1:
-            throttle *= 1
-
-        alpha_turn = 0.25
-        alpha_throttle = 0.4
-
+        # ── optional smoothing (enable by changing False → True) ──
         if False:
-            turn = (
-                alpha_turn * turn +
-                (1 - alpha_turn) * smooth_turn
-            )
+            alpha_turn     = 0.25
+            alpha_throttle = 0.4
+            turn     = alpha_turn     * turn     + (1 - alpha_turn)     * smooth_turn
+            throttle = alpha_throttle * throttle + (1 - alpha_throttle) * smooth_throttle
+            smooth_turn     = turn
+            smooth_throttle = throttle
 
-            throttle = (
-                alpha_throttle * throttle +
-                (1 - alpha_throttle) * smooth_throttle
-            )
-        # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-        # (1) base throttle contribution (like stick forward/back)
-
-        base_throttle = throttle
-
-        # (2) turn contribution (like axes[2])
+        # ── motor mixing ───────────────────────────
         turn_component = turn * turn_boost
 
-        # (3) trigger-equivalent contribution (disabled unless you want extra signal)
-        left_trigger = 0.0
-        right_trigger = 0.0
+        left_motor  = (throttle + turn_component) * max_speed * left_scale
+        right_motor = (throttle - turn_component) * max_speed * right_scale
 
-        left_trigger_component = left_trigger * TURN_POWER
-        right_trigger_component = right_trigger * TURN_POWER
-
-        # =========================
-        # MOTOR MIXING (EXACT MANUAL FORM)
-        # =========================
-
-        left_motor = (
-            left_trigger_component +
-            base_throttle +
-            turn_component
-        ) * max_speed * left_scale
-
-        right_motor = (
-            right_trigger_component +
-            base_throttle -
-            turn_component
-        ) * max_speed * right_scale
-
-        # clamp
-        left_motor = max(-1.0, min(1.0, left_motor))
+        left_motor  = max(-1.0, min(1.0, left_motor))
         right_motor = max(-1.0, min(1.0, right_motor))
 
-        # apply
-        robot.left_motor.value = left_motor
+        robot.left_motor.value  = left_motor
         robot.right_motor.value = right_motor
+
+        # ── timing ─────────────────────────────────
+        t_loop_end   = time.perf_counter()
+        infer_ms     = (t_infer_end - t_infer_start) * 1000
+        loop_ms      = (t_loop_end  - t_loop_start)  * 1000
 
         print(
             f"T={throttle:+.2f} turn={turn:+.2f} | "
-            f"L={left_motor:+.2f} R={right_motor:+.2f}"
+            f"L={left_motor:+.2f} R={right_motor:+.2f} | "
+            f"infer={infer_ms:5.1f}ms loop={loop_ms:5.1f}ms"
         )
+
 finally:
     print("Stopping robot...")
-
-    try:
-        robot.stop()
-    except:
-        pass
-
-    try:
-        camera.stop()
-    except:
-        pass
+    try: robot.stop()
+    except: pass
+    try: camera.stop()
+    except: pass
