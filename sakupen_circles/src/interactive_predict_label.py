@@ -22,6 +22,11 @@ import matplotlib.pyplot as plt
 import ipywidgets as widgets
 from IPython.display import display, clear_output
 
+try:
+    import onnxruntime as ort
+    HAS_ORT = True
+except ImportError:
+    HAS_ORT = False
 
 def find_model_path(provided=None):
     if provided and os.path.exists(provided):
@@ -40,23 +45,29 @@ def find_model_path(provided=None):
     return found[0] if found else None
 
 
-def load_model(path, device):
-    # Re-create a ResNet-like regressor with 2 outputs (x,y)
-    model = models.resnet18(pretrained=False)
-    model.fc = nn.Linear(model.fc.in_features, 2)
+def load_model(path, device, model_type):
+    model = getattr(models, model_type)(pretrained=False)
+    
+    # Different architectures use different classifier attribute names
+    if hasattr(model, 'fc'):
+        # ResNet family
+        model.fc = nn.Linear(model.fc.in_features, 2)
+    elif hasattr(model, 'classifier'):
+        # MobileNet, EfficientNet family
+        in_features = model.classifier[-1].in_features
+        model.classifier[-1] = nn.Linear(in_features, 2)
+    else:
+        raise ValueError(f"Don't know how to replace classifier for {model_type}")
+
     state = torch.load(path, map_location=device)
-    # Support either full state_dict or checkpoint dicts
     if isinstance(state, dict) and 'state_dict' in state:
         state = state['state_dict']
-    # If keys are prefixed (module.), try to strip
     try:
         model.load_state_dict(state)
     except Exception:
-        new_state = {}
-        for k, v in state.items():
-            nk = k.replace('module.', '')
-            new_state[nk] = v
+        new_state = {k.replace('module.', ''): v for k, v in state.items()}
         model.load_state_dict(new_state)
+    
     model.to(device).eval()
     return model
 
@@ -129,7 +140,7 @@ def build_queue(source_dir, output_dir, extensions, exclude_labelled=True, manif
     return queue
 
 
-def run_interactive(model_path=None, source_dir='../../data/dataset_images', output_dir='../../data/labelled', img_size=224):
+def run_interactive(model_path=None, source_dir='../../data/dataset_images', output_dir='../../data/labelled', img_size=224, model_type='resnet18'):
     os.makedirs(output_dir, exist_ok=True)
     manifest_path = os.path.join(output_dir, '.processed_manifest.txt')
     
@@ -139,8 +150,17 @@ def run_interactive(model_path=None, source_dir='../../data/dataset_images', out
     if model_path is None:
         raise FileNotFoundError('No model file found. Provide --model argument or place model in src/ or models/.')
 
-    model = load_model(model_path, device)
 
+    is_onnx = model_path.endswith('.onnx')
+    if is_onnx:
+        if not HAS_ORT:
+            raise ImportError('onnxruntime not installed: pip install onnxruntime')
+        ort_sess = ort.InferenceSession(model_path)
+        ort_input  = ort_sess.get_inputs()[0].name
+        ort_output = ort_sess.get_outputs()[0].name
+        model = None
+    else:
+        model = load_model(model_path, device, model_type)
     EXTENSIONS = ('*.jpg', '*.jpeg', '*.png', '*.bmp')
     queue = build_queue(source_dir, output_dir, EXTENSIONS, exclude_labelled=True, manifest_path=manifest_path)
 
@@ -202,9 +222,17 @@ def run_interactive(model_path=None, source_dir='../../data/dataset_images', out
         i = state['index']
         img_bgr = cv2.imread(queue[i])
         img_bgr = cv2.resize(img_bgr, (img_size, img_size))
-        t = image_to_tensor(img_bgr, img_size, device)
-        with torch.no_grad():
-            out = model(t).cpu().numpy().squeeze()
+        # AFTER
+        if is_onnx:
+            img = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2RGB).astype(np.float32) / 255.0
+            img = ((img - np.array([0.485, 0.456, 0.406], dtype=np.float32)) /
+                        np.array([0.229, 0.224, 0.225], dtype=np.float32))
+            img = img.transpose(2, 0, 1)[np.newaxis, ...]
+            out = ort_sess.run([ort_output], {ort_input: img})[0].flatten()
+        else:
+            t = image_to_tensor(img_bgr, img_size, device)
+            with torch.no_grad():
+                out = model(t).cpu().numpy().squeeze()
         x_norm, y_norm = float(np.clip(out[0], -1, 1)), float(np.clip(out[1], -1, 1))
         px, py = pixel_from_norm(x_norm, y_norm, img_size)
         state['pred'] = (x_norm, y_norm, px, py)
