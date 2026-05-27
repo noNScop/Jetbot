@@ -7,7 +7,7 @@ import onnxruntime as ort
 # =========================
 # CONFIG
 # =========================
-MODEL_PATH  = "../models/tiny_mobilenet.onnx"
+MODEL_PATH  = "../models/mobilenet_tiny.onnx"
 max_speed   = 0.3
 left_scale  = 1.0
 right_scale = 0.98
@@ -54,6 +54,10 @@ try:
         t_infer_end = time.perf_counter()
 
         throttle, turn = output[0][0]
+
+        # -- potentially slow down on turns ---------------------------------
+        if abs(turn) > 0.1:
+            throttle *= 1
 
         # -- optional smoothing (enable by changing False  True) --
         if False:

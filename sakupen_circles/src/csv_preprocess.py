@@ -59,4 +59,6 @@ if __name__ == "__main__":
     source = "/home/noNScop/Desktop/sem6/ROB/Jetbot/data/recordings_with_controls_raw"
     dest = "/home/noNScop/Desktop/sem6/ROB/Jetbot/data/dataset_raw.csv"
 
-    process_directory(source, dest)
+    # process_directory(source, dest)
+    df = process_csv("/home/noNScop/Desktop/sem6/ROB/Jetbot/data/dataset_retarded.csv").sort_values("frame_timestamp").reset_index(drop=True)
+    df.to_csv("/home/noNScop/Desktop/sem6/ROB/Jetbot/data/dataset_retarded.csv", index=False)
