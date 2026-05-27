@@ -29,8 +29,8 @@ camera = Camera.instance()
 # PREPROCESS
 # =========================
 def preprocess(bgr_frame):
-    img = bgr_frame[:, :, ::-1].astype(np.float32) / 255.0  # BGR→RGB + [0,1]
-    img = (img - 0.5) / 0.5                                  # → [-1, 1]
+    img = bgr_frame[:, :, ::-1].astype(np.float32) / 255.0  # BGRRGB + [0,1]
+    img = (img - 0.5) / 0.5                                  #  [-1, 1]
     return np.ascontiguousarray(img.transpose(2, 0, 1)[np.newaxis])
 
 # =========================
@@ -48,14 +48,14 @@ try:
 
         x = preprocess(frame)  # no cvtColor needed, flip is in preprocess
 
-        # ── inference ──────────────────────────────
+        # -- inference ----------------------
         t_infer_start = time.perf_counter()
         output = onnx_session.run(None, {"x": x})
         t_infer_end = time.perf_counter()
 
         throttle, turn = output[0][0]
 
-        # ── optional smoothing (enable by changing False → True) ──
+        # -- optional smoothing (enable by changing False  True) --
         if False:
             alpha_turn     = 0.25
             alpha_throttle = 0.4
@@ -64,7 +64,7 @@ try:
             smooth_turn     = turn
             smooth_throttle = throttle
 
-        # ── motor mixing ───────────────────────────
+        # -- motor mixing ----------------------
         turn_component = turn * turn_boost
 
         left_motor  = (throttle + turn_component) * max_speed * left_scale
@@ -76,7 +76,7 @@ try:
         robot.left_motor.value  = left_motor
         robot.right_motor.value = right_motor
 
-        # ── timing ─────────────────────────────────
+        # -- timing -----------------------------
         t_loop_end   = time.perf_counter()
         infer_ms     = (t_infer_end - t_infer_start) * 1000
         loop_ms      = (t_loop_end  - t_loop_start)  * 1000
