@@ -17,7 +17,13 @@ TURN_POWER  = 0.8
 # =========================
 # LOAD MODEL
 # =========================
-onnx_session = ort.InferenceSession(MODEL_PATH)
+# onnx_session = ort.InferenceSession(MODEL_PATH)
+
+# New — same model file, just different session config
+onnx_session = ort.InferenceSession(
+    MODEL_PATH,
+    providers=["CUDAExecutionProvider", "CPUExecutionProvider"]
+)
 
 # =========================
 # CAMERA + ROBOT
