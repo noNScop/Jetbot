@@ -24,13 +24,13 @@ For our second approach, to-point-driving, we manually annotated a dataset with 
 
 In both approaches, we first filtered out images that were not useful for training, such as those where jetbot stayed out of track or where jetbot was standing still.
 
-Alsom during training, all models were additionally augmented by random color jittering to ensure better generalization and robustness to different lighting conditions. This was done using `torchvision.transforms.ColorJitter` with parameters `brightness=0.2`, `contrast=0.2`, `saturation=0.2`, and `hue=0.1`.
+Also during training, all models were additionally augmented by random color jittering to ensure better generalization and robustness to different lighting conditions. This was done using `torchvision.transforms.ColorJitter` with parameters `brightness=0.2`, `contrast=0.2`, `saturation=0.2`, and `hue=0.1`.
 
 ### Imitation driving
 
 Our preprocessing pipeline for the imitation driving approach includes the following steps:
-- in `csv_preprocess.py` we concate all the csv files with controler inputs and shift them by 1 frame, as original 10fps recording caused significant risk of Jetbot being ahead of controller inputs, which would make training impossible.
-- in `images_preprocess.py` we place all the images in a single directory and ensure their names are consistent with csv (they have to have the same number of digits in decimal part fopr efficient pairing csv row <-> image, but by default they don't)
+- in `csv_preprocess.py` we concate all the csv files with controler inputs and shift them by 1 frame, as original 10fps recording was pairing frames with old controller inputs, which would make training impossible.
+- in `images_preprocess.py` we place all the images in a single directory and ensure their names are consistent with csv (they have to have the same number of digits in decimal part for efficient pairing csv row <-> image, but by default they don't)
 - in `sync_images_csv.py` we remove images without matching row in csv and remove rows in csv without an image.
 - Finally, in `data_inspection_steering.ipynb` we mirror each image with respect to y axis and flip its steering value. This way we have 2x larger dataset 2*1948=3896 images with controler data, which enhances the model's ability to generalize and handle various driving scenarios.
 
@@ -62,7 +62,7 @@ Both models were trained using the Adam optimizer with a learning rate of 0.001/
 
 **Figure 5:** Here both training and validation losses are decreasing, which indicates that the model is learning to predict target points based on the camera input.
 
-Before testing it on Jetbot, we evaluated the performance of both models by taking sample images from the validation set and comparing the predicted steering angles or target points with the actual values. This allowed us to verify that the models were learning to make reasonable predictions based on the camera input.'
+Before testing it on Jetbot, we evaluated the performance of both models by taking sample images from the validation set and comparing the predicted steering angles or target points with the actual values. This allowed us to verify that the models were learning to make reasonable predictions based on the camera input.
 
 ![Model Prediction (point to driving)](assets/point_to_model_prediction.png)
 
