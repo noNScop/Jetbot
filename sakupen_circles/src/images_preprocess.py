@@ -8,25 +8,6 @@ from pathlib import Path
 ROOT_DIR = "/home/noNScop/Desktop/sem6/ROB/Jetbot/data/recordings_with_controls_raw"
 OUT_DIR = "/home/noNScop/Desktop/sem6/ROB/Jetbot/data/dataset_images_raw"
 
-def rename():
-    pattern = re.compile(r"^\d+_(\d+)\.(\d+)\.png$")
-
-    for file_path in Path(ROOT_DIR).rglob("*.png"):
-        match = pattern.match(file_path.name)
-
-        if match:
-            time1 = match.group(1)
-            time2 = match.group(2)
-
-            # Keep only first 2 digits of time2
-            new_name = f"{time1}.{time2}.png"
-
-            new_path = file_path.with_name(new_name)
-
-            print(f"{file_path.name} -> {new_name}")
-
-            file_path.rename(new_path)
-
 def collect_pngs(input_dir: str, output_dir: str):
     root = Path(input_dir)
     dest = Path(output_dir)
@@ -53,5 +34,4 @@ def collect_pngs(input_dir: str, output_dir: str):
     print(f"\nDone. Copied {copied} file(s), skipped {skipped} duplicate(s) -> {dest}")
 
 if __name__ == "__main__":
-    rename()
     collect_pngs(ROOT_DIR, OUT_DIR)
