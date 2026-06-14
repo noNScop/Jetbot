@@ -101,7 +101,7 @@ Even after optimizing our models and converting them to ONNX format, we still fa
 | Imitation | 70ms (10ms)    | 60ms (9ms)    |
 | To-point  | 100ms (150ms)  | ------------* |
 
-**Figure 7:** Latency measurements for both models on CPU and GPU. The numbers in parentheses represent the latency after optimization and conversion to ONNX format. The to-point driving model was not able to run on GPU due to compatibility issues with the older version of PyTorch (there were some problems with torchvsion and onnx conversion).
+**Figure 7:** Latency measurements for both models on CPU and GPU. The numbers in parentheses represent standard deviations. The to-point driving model was not able to run on GPU due to compatibility issues with the older version of PyTorch (there were some problems with torchvsion and onnx conversion).
 
 
 ## Authors
