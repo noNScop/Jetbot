@@ -16,7 +16,7 @@ This project aimed at building an autonomous driving system for a Jetbot using d
 
 To train our model, we collected data by manually driving the Jetbot around the track while recording the camera feed and corresponding steering commands. This dataset was then used to train a our first approach, a convolutional neural network (CNN) that takes the camera input and predicts the steering angle.
 
-For our second approach, to-point-driving, we manually annotated a dataset with target points on the track and trained a model to predict the next target point based on the current camera input. For annotation we used script available in `src/data_processing/to_point_driving/label_images_custom.ipynb`.
+For our second approach, to-point-driving, we manually annotated a dataset with target points on the track and trained a model to predict the next target point based on the current camera input. For annotation we used script available in `src/data_methods/data_processing/to_point_driving/label_images_custom.ipynb`.
 
 ## Data preprocessing
 
