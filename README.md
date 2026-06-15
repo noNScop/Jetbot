@@ -85,7 +85,7 @@ It was able to achieve 1 lap in 18 seconds, which matched our score from manual 
 
 ### Lack of GPU availability
 
-Despite jetbot formally having a GPU, we were not able to utilize it for our models due to strange deployement of our notebooks instance on jetbot. As we tried to repair it, we ended up removing pytorch from jetbot, causing a lot more issues
+Despite jetbot formally having a GPU, we were not able to utilize it for our models due to strange deployement of our notebooks instance on jetbot. As we tried to repair it, we ended up removing pytorch from jetbot, causing a lot more issues. Finally GPU was available, yet required very old version of pytorch.
 
 ### Pytorch installation issues
 
@@ -93,16 +93,24 @@ After removing pytorch, we had to reinstall it, but due to some dependency issue
 
 Suprisingy though it gave as access to CUDA, which we were not able to use before. Sadly, it didn't improve latency so much (only by about 10ms on imitation driving model), which made us think that the main bottleneck was not in the GPU, but rather in the CPU or in the data transfer between CPU and GPU.
 
+### Inportability to other robots
+
+We also tried to change robot on one labalatories, but we encountered problems:
+- on one robot, it was impossible to install necessary dependency (ONNX runtime), which made it impossible to run our models on that robot.
+- on other robot, imports both in the notebook and python script refused to cooperate due to numpy problems, but removing numpy caused problems in it's reinstallation, which made it impossible to run our code on those robots as well.
+
+### Oversmoothing of steering commands
+In an attempt to reduce the jitteriness of the steering commands, we implemented a smoothing techniques that averaged the predicted steering angles over a short window of time. However, it introduced even more latency to the system. We also had problem that trying to fix latency we implemented multiple smoothing layers on top of each other (in 1 moment we had 4 layers of smoothing), which caused the steering commands to become too sluggish and unresponsive, especially in tight turns. Ultimately, we had to remove all smoothing layers to achieve better performance.
+
 ### Latency issues
 Even after optimizing our models and converting them to ONNX format, we still faced significant latency issues, especially with the to-point driving model. This was likely due to the complexity of the model and the limitations of the hardware on the Jetbot. Despite our efforts to optimize the model architecture and reduce latency, we were not able to achieve fair performance with the to-point driving approach, which ultimately led us to focus on the imitation driving model for deployment.
 
 | Model    | CPU             | GPU           |
 | -------- | -------         | -------       |
 | Imitation | 70ms (10ms)    | 60ms (9ms)    |
-| To-point  | 100ms (150ms)  | ------------* |
+| To-point  | 150ms (100ms)  | ------------* |
 
-**Figure 7:** Latency measurements for both models on CPU and GPU. The numbers in parentheses represent standard deviations. The to-point driving model was not able to run on GPU due to compatibility issues with the older version of PyTorch (there were some problems with torchvsion and onnx conversion).
-
+**Table 1:** Latency measurements for both models on CPU and GPU. The numbers in parentheses represent standard deviations. The to-point driving model was not able to run on GPU due to compatibility issues with the older version of PyTorch (there were some problems with torchvsion and onnx conversion).
 
 ## Authors
 - Oliwier Necelman
