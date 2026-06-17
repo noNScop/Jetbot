@@ -2,11 +2,11 @@
 
 ### Overview
 
-This project aimed at building an autonomous driving system for a Jetbot using deep learning techniques. The system is designed to navigate through simple car tracks by processing camera input and making real-time driving decisions.
+This project aimed at building an autonomous driving system for a [**Jetbot**](https://jetbot.org/master/) using deep learning techniques. The system is designed to navigate through simple car tracks by processing camera input and making real-time driving decisions.
 
-![Jetbot on Track](jetbot_on_track.jpg)
+![Jetbots](assets/jetbot_on_track.jpg)
 
-**Figure 1:** Our jetbot in action on a test track, demonstrating its ability to follow the path autonomously.
+**Figure 1:** jetbots standing in line. Ready to take the most important race of their life, that will decide the robotics2 grades of tens of AI students. 
 
 ![Camera Input](assets/camera_input.png)
 
@@ -48,7 +48,9 @@ The model consists of a pretrained backbone network (originally ResNet18, but du
 
 ### Imitation driving
 
-For the imitation driving approach, we used a similar CNN architecture, but instead of predicting target points, the output layer was designed to predict the steering angle directly. The model was trained using mean squared error loss between the predicted steering angle and the actual steering angle from the dataset.
+For the imitation driving approach, we used a similar CNN architecture, but instead of predicting target points, the output layer was designed to predict the steering angle directly, in range [-1, 1]. It  model uses MobileNetV4 Conv Small (pretrained on ImageNet), with the final classifier replaced by a custom head: Linear(1280→256) → ReLU → Dropout(0.2) → Linear(256→2) → Tanh.
+
+The model was trained using mean squared error loss between the predicted steering angle and the actual steering angle from the dataset.
 
 ## Training and Evaluation
 
@@ -77,9 +79,10 @@ Figure 5: We can see that the predicted target point (red dot) is reasonably clo
 
 After training, we tried to deploy both models on jetbot. Sadly, due to many technical difficulties (see section "Issues encountered") we needed to convert all models to ONNX format and run them using ONNX Runtime. This conversion process was straightforward for the imitation driving model, but for the to-point driving model we had to make some adjustments to the architecture to ensure compatibility with ONNX. Sadly, even after conversion, the to-point driving still faced some issues with latency, which made it too buggy on the track to work. Luckily, the imitation driving model worked well and was able to navigate the track autonomously, demonstrating the effectiveness of our approach. 
 
-It was able to achieve 1 lap in 18 seconds, which matched our score from manual driving.
+It was able to achieve **1 lap in 18 seconds**, which exactly matched our score from manual driving. However we belive that 
 
-![Jetbot Autonomous Driving](jetbot_autonomous_driving.mp4)
+- [link to video of our jetbot **driving autonomously** (with live comments of team members!)](https://drive.google.com/file/d/1Pb10zPwQQIwnaZj92rRBH_AwpXqcleDk/view?usp=sharing)
+
 
 ## Issues encountered
 
@@ -105,14 +108,58 @@ In an attempt to reduce the jitteriness of the steering commands, we implemented
 ### Latency issues
 Even after optimizing our models and converting them to ONNX format, we still faced significant latency issues, especially with the to-point driving model. This was likely due to the complexity of the model and the limitations of the hardware on the Jetbot. Despite our efforts to optimize the model architecture and reduce latency, we were not able to achieve fair performance with the to-point driving approach, which ultimately led us to focus on the imitation driving model for deployment.
 
-| Model    | CPU             | GPU           |
-| -------- | -------         | -------       |
-| Imitation | 70ms (10ms)    | 60ms (9ms)    |
-| To-point  | 150ms (100ms)  | ------------* |
+| Model    | CPU             |
+| -------- | -------         | 
+| Imitation | 70ms (10ms)    |
+| To-point  | 100ms (150ms)  |
 
-**Table 1:** Latency measurements for both models on CPU and GPU. The numbers in parentheses represent standard deviations. The to-point driving model was not able to run on GPU due to compatibility issues with the older version of PyTorch (there were some problems with torchvsion and onnx conversion).
+**Figure 7:** Latency measurements for both models on CPU and GPU. The numbers in parentheses represent standard deviations. The to-point driving model was not able to run on GPU due to compatibility issues with the older version of PyTorch (there were some problems with torchvsion and onnx conversion).
+
+
+
+## Error analysis
+After testing our models on the track, we observed that the imitation driving model performed reasonably well, but there were still some instances where it struggled to navigate  turns or recover from being slightly off the track. It may be due to: 
+- speed-quality tradeoff, as we had increase speed to achieve reasonable time per lap, which created more risk of too late reaction to turns and obstacles on the track.
+- lack of any smoothing, causing model to turn too sharply in some cases. 
+- Our dataset not being good enough, as we only collected data from a few laps around the track, which were created by a single driver (one of us), which may have introduced some bias into the model's learning process. Additionally, our driving style was quite sharp and risky, which may have caused the model to learn more aggressive steering behaviors that are not ideal for smooth navigation.
+
+
+
+## runnig the code.
+The commends needed to fully reproduce the results — from data collection to model deployment can be found in README.md files in folders `data_methods`, `imitation_driving` and  `to_point_driving`.
+
+In order to just run the models run:
+- for Imitation driving - `python3 sakupen_circles/src/imitation_driving/driving/steering_driver.py`
+- for To-point driving - `python3 sakupen_circles/src/to_point_driving/driving/autonomous_drive.py`
+    - If the version of the offset in onnx model is different than required — use `sakupen_circles/src/to_point_driving/helpers/export_onnx.py` to export model to corret version
+
+all scripts must be executed on the Jetbot with the camera connected and the model files present under sakupen_circles/models/
+
+
+## Conclusions
+
+The imitation-driving approach proved to be the more practical solution, matching manual-driving lap times despite the Jetbot's hardware constraints, while to-point-driving remained promising but was held back by latency and compatibility issues rather than a flawed concept. Most challenges came from infrastructure rather than the models themselves, with the broken PyTorch install and forced opset downgrade costing significant time. Future work should focus on collecting a larger, more varied dataset, smoothing steering output, adjusting the robots controls based on models output, and better balancing speed against control precision to improve turn handling and recovery.
+
+
+## repository
+
+a full codebase of the project can be found here:
+- [https://github.com/noNScop/Jetbot](https://github.com/noNScop/Jetbot )
+
+
 
 ## Authors
 - Oliwier Necelman
 - Karol Sroka
 - Igor Szymczak
+
+## Team name:
+![our team](assets/sakupen_circles.jpeg)
+
+**Figure 9:** A thumbnail from the Geometry Dash level that inspired our team's name — **"Sakupen Circles"**.
+
+A full video of this level an be found here: 
+[youtube video](https://www.youtube.com/watch?v=b66_Oe4Xo1w).
+
+
+
