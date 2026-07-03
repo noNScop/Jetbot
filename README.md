@@ -6,11 +6,11 @@ This project aimed at building an autonomous driving system for a [**Jetbot**](h
 
 ![Jetbots](assets/jetbot_on_track.jpg)
 
-**Figure 1:** jetbots standing in line. Ready to take the most important race of their life, that will decide the robotics2 grades of tens of AI students. 
+***Figure 1:** jetbots standing in line. Ready to take the most important race of their life, that will decide the robotics2 grades of tens of AI students.*
 
 ![Camera Input](assets/camera_input.png)
 
-**Figure 2:** Example input from the Jetbot's camera
+***Figure 2:** Example input from the Jetbot's camera*
 
 ### Data Collection
 
@@ -58,11 +58,11 @@ Both models were trained using the Adam optimizer with a learning rate of 0.001/
 
 ![imitation driving losses](assets/imitation_train_val_loss.png)
 
-**Figure 4:** We can see that loss during training is decreasing, which indicates that the model is learning to predict steering angles based on the camera input. The validation loss is suprisingly staying almost the same, which may indicate that the model is not generalizing well to unseen data. However, manual checks found model predictions to be reasonable, so we decided to proceed with deployment on Jetbot and evaluate its performance in real-world conditions.
+***Figure 4:** We can see that loss during training is decreasing, which indicates that the model is learning to predict steering angles based on the camera input. The validation loss is suprisingly staying almost the same, which may indicate that the model is not generalizing well to unseen data. However, manual checks found model predictions to be reasonable, so we decided to proceed with deployment on Jetbot and evaluate its performance in real-world conditions.
 
 ![point-to driving losses](assets/point_to_train_val_loss.png)
 
-**Figure 5:** Here both training and validation losses are decreasing, which indicates that the model is learning to predict target points based on the camera input.
+***Figure 5:** Here both training and validation losses are decreasing, which indicates that the model is learning to predict target points based on the camera input.*
 
 Before testing it on Jetbot, we evaluated the performance of both models by taking sample images from the validation set and comparing the predicted steering angles or target points with the actual values. This allowed us to verify that the models were learning to make reasonable predictions based on the camera input.
 
@@ -79,7 +79,10 @@ Figure 5: We can see that the predicted target point (red dot) is reasonably clo
 
 After training, we tried to deploy both models on jetbot. Sadly, due to many technical difficulties (see section "Issues encountered") we needed to convert all models to ONNX format and run them using ONNX Runtime. This conversion process was straightforward for the imitation driving model, but for the to-point driving model we had to make some adjustments to the architecture to ensure compatibility with ONNX. Sadly, even after conversion, the to-point driving still faced some issues with latency, which made it too buggy on the track to work. Luckily, the imitation driving model worked well and was able to navigate the track autonomously, demonstrating the effectiveness of our approach. 
 
-It was able to achieve **1 lap in 18 seconds**, which exactly matched our score from manual driving. However we belive that 
+It was able to achieve **1 lap in 18 seconds**, which exactly matched our score from manual driving. However we belive that (coś tu chyba ucięło ten opis. Widzę to miesiąc po tworzeiu raportu i jestem ciekawy co tu miało być :))
+
+![driving robot](assets/jetbot_autonomous_driving.gif)
+
 
 - [link to video of our jetbot **driving autonomously** (with live comments of team members!)](https://drive.google.com/file/d/1Pb10zPwQQIwnaZj92rRBH_AwpXqcleDk/view?usp=sharing)
 
